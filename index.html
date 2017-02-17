@@ -1,0 +1,153 @@
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <style>* { padding: 0; margin: 0; }</style>
+        <script src="js/phaser.min.js"></script>
+    </head>
+    <body>
+        <script>
+            var game = new Phaser.Game(800, 600, Phaser.AUTO, null, 
+                {preload: preload, create: create, update: update}
+            );
+
+            var ball;
+            var paddle;
+            var bricks;
+            var newBrick;
+            var brickInfo;
+            var scoreText;
+            var score = 0;
+            var playing = false;
+            var startButton;
+            var ballSpeed = 250;
+
+            var leftKey;
+            var rightKey;
+            
+            function preload() {
+                //game.scale.scaleMode = Phaser.ScaleManager.SHOW_ALL;
+                game.scale.pageAlignHorizontally = true;
+                game.scale.pageAlignVertically = true;
+                
+                game.stage.backgroundColor="#eee";
+
+                loadSprites();
+            }
+            
+            function loadSprites() {
+                game.load.spritesheet('ball', 'img/wobble.png', 20, 20);    
+                game.load.image("paddle", "img/paddle.png");
+                game.load.image('brick', 'img/brick.png');
+                game.load.spritesheet('button', 'img/button.png', 120, 40);
+            }
+
+
+            function create() {
+                leftKey = game.input.keyboard.addKey(Phaser.Keyboard.LEFT);
+                rightKey = game.input.keyboard.addKey(Phaser.Keyboard.RIGHT);
+
+                game.physics.startSystem(Phaser.Physics.ARCADE);
+                game.physics.arcade.checkCollision.down = false;
+
+                ball = game.add.sprite(game.world.width * 0.5, game.world.height - 100, 'ball');
+                ball.animations.add('wobble', [0,1,0,2,0,1,0,2,0], 24);
+                ball.anchor.set(0.5);
+                game.physics.enable(ball, Phaser.Physics.ARCADE);
+                ball.body.collideWorldBounds = true;
+                ball.body.bounce.set(1);
+                ball.checkWorldBounds = true;
+                ball.events.onOutOfBounds.add(function(){
+                    location.reload();
+                }, this);
+
+                paddle = game.add.sprite(game.world.width * 0.5, game.world.height - 5, 'paddle');
+                paddle.anchor.set(0.5,1);
+                game.physics.enable(paddle, Phaser.Physics.ARCADE);
+                paddle.body.immovable = true;
+
+                initBricks();
+
+                scoreText = game.add.text(5, 5, 'Points: 0', { font: '18px Arial', fill: '#0095DD' });
+
+                startButton = game.add.button(game.world.width * 0.5, game.world.height * 0.5, 'button', startGame, this, 1, 0, 1);
+                startButton.anchor.set(0.5);
+            }
+
+            function initBricks() {
+                brickInfo = {
+                    width: 50,
+                    height: 20,
+                    count: {
+                        row: 7,
+                        col: 5
+                    },
+                    offset: {
+                        top: 50,
+                        left: game.world.width / 2 - 7 * (50) / 2 
+                    },
+                    padding: 10
+                }
+                bricks = game.add.group();
+                for(c=0; c<brickInfo.count.col; c++) {
+                    for(r=0; r<brickInfo.count.row; r++) {
+                        var brickX = (r*(brickInfo.width+brickInfo.padding))+brickInfo.offset.left;
+                        var brickY = (c*(brickInfo.height+brickInfo.padding))+brickInfo.offset.top;
+                        newBrick = game.add.sprite(brickX, brickY, 'brick');
+                        game.physics.enable(newBrick, Phaser.Physics.ARCADE);
+                        newBrick.body.immovable = true;
+                        newBrick.anchor.set(0.5);
+                        bricks.add(newBrick);
+                    }
+                }
+            }
+
+            var speed = 0;
+            var speedUp = 1;
+            var maxSpeed = 5;
+
+            function update() {
+                game.physics.arcade.collide(ball, paddle, ballHitPaddle);
+                game.physics.arcade.collide(ball, bricks, ballHitBrick);
+                if(playing) {
+                    if (speed < maxSpeed) {
+                        speed += speedUp; 
+                    }
+                    if(leftKey.isDown && paddle.x > 0) {
+                        paddle.x-=5;
+                    } else if(rightKey.isDown && paddle.x < game.world.width){
+                        paddle.x+=5;
+                    } else {
+                        speed = 0;
+                    }
+                }
+            }
+            
+            function ballHitPaddle(ball, paddle) {
+                ball.animations.play('wobble');
+                ball.body.velocity.x = -1 * 10 * (paddle.x - ball.x)
+            }
+
+            function ballHitBrick(ball, brick) {
+                var killTween = game.add.tween(brick.scale);
+                killTween.to({x:0,y:0}, 200, Phaser.Easing.Linear.None);
+                killTween.onComplete.addOnce(function(){
+                    brick.kill();
+                }, this);
+                killTween.start();
+                score += 10;
+                scoreText.setText('Points: '+score);
+                if(score === brickInfo.count.row*brickInfo.count.col*10) {
+                    alert('You won the game, congratulations!');
+                    location.reload();
+                }
+            }
+
+            function startGame() {
+                startButton.destroy();
+                ball.body.velocity.set(0, 200);
+                playing = true;
+            }
+
+        </script>
+    </body>
+</html>
